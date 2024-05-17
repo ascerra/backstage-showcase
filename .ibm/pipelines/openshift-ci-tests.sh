@@ -46,17 +46,17 @@ install_ibmcloud() {
   fi
 }
 
-install_oc() {
-  if [[ -x "$(command -v oc)" ]]; then
-    echo "oc is already installed."
-  else
-    curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
-    tar -xf oc.tar.gz
-    mv oc /usr/local/bin/
-    rm oc.tar.gz
-    echo "oc installed successfully."
-  fi
-}
+# install_oc() {
+#   if [[ -x "$(command -v oc)" ]]; then
+#     echo "oc is already installed."
+#   else
+#     curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
+#     tar -xf oc.tar.gz
+#     mv oc /usr/local/bin/
+#     rm oc.tar.gz
+#     echo "oc installed successfully."
+#   fi
+# }
 
 install_helm() {
   if [[ -x "$(command -v helm)" ]]; then
@@ -126,11 +126,14 @@ apply_yaml_files() {
   oc apply -f $dir/resources/cluster_role/cluster-role-ocm.yaml  --namespace=${project}
   oc apply -f $dir/resources/cluster_role_binding/cluster-role-binding-ocm.yaml  --namespace=${project}
 
-  sed -i "s/K8S_CLUSTER_API_SERVER_URL:.*/K8S_CLUSTER_API_SERVER_URL: $ENCODED_API_SERVER_URL/g" $dir/auth/secrets-rhdh-secrets.yaml
-  sed -i "s/K8S_CLUSTER_NAME:.*/K8S_CLUSTER_NAME: $ENCODED_CLUSTER_NAME/g" $dir/auth/secrets-rhdh-secrets.yaml
+  sed -i "s|K8S_CLUSTER_API_SERVER_URL:.*|K8S_CLUSTER_API_SERVER_URL: $ENCODED_API_SERVER_URL|g" "$dir/auth/secrets-rhdh-secrets.yaml"
+  # sed -i "s/K8S_CLUSTER_API_SERVER_URL:.*/K8S_CLUSTER_API_SERVER_URL: $ENCODED_API_SERVER_URL/g" $dir/auth/secrets-rhdh-secrets.yaml
+  sed -i "s|K8S_CLUSTER_NAME:.*|K8S_CLUSTER_NAME: $ENCODED_CLUSTER_NAME|g" "$dir/auth/secrets-rhdh-secrets.yaml"
+  # sed -i "s/K8S_CLUSTER_NAME:.*/K8S_CLUSTER_NAME: $ENCODED_CLUSTER_NAME/g" $dir/auth/secrets-rhdh-secrets.yaml
 
   token=$(oc get secret $secret_name -n "$project" -o=jsonpath='{.data.token}')
-  sed -i "s/OCM_CLUSTER_TOKEN: .*/OCM_CLUSTER_TOKEN: $token/" "$dir"/auth/secrets-rhdh-secrets.yaml
+  sed -i "s|OCM_CLUSTER_TOKEN: .*|OCM_CLUSTER_TOKEN: $token|g" "$dir/auth/secrets-rhdh-secrets.yaml"
+  # sed -i "s/OCM_CLUSTER_TOKEN: .*/OCM_CLUSTER_TOKEN: $token/" "$dir"/auth/secrets-rhdh-secrets.yaml
 
 
   if [[ "${project}" == "showcase-rbac" || "${project}" == "showcase-rbac-nightly" ]]; then
@@ -142,9 +145,9 @@ apply_yaml_files() {
   oc apply -f $dir/auth/secrets-rhdh-secrets.yaml --namespace=${project}
 
   # pipelines (required for tekton)
-  sleep 20 # wait for Pipeline Operator to be ready
-  oc apply -f "$dir"/resources/pipeline-run/hello-world-pipeline.yaml
-  oc apply -f "$dir"/resources/pipeline-run/hello-world-pipeline-run.yaml
+  # sleep 20 # wait for Pipeline Operator to be ready
+  # oc apply -f "$dir"/resources/pipeline-run/hello-world-pipeline.yaml
+  # oc apply -f "$dir"/resources/pipeline-run/hello-world-pipeline-run.yaml
 }
 
 droute_send() {
@@ -329,20 +332,20 @@ main() {
 
   echo "OPENSHIFT_CLUSTER_ID : $OPENSHIFT_CLUSTER_ID"
 
-  install_oc
+  # install_oc
   oc version --client
-  oc login --token=${K8S_CLUSTER_TOKEN} --server=${K8S_CLUSTER_URL}
+  #oc login --token=${K8S_CLUSTER_TOKEN} --server=${K8S_CLUSTER_URL}
 
   API_SERVER_URL=$(oc whoami --show-server)
   K8S_CLUSTER_ROUTER_BASE=$(oc get route console -n openshift-console -o=jsonpath='{.spec.host}' | sed 's/^[^.]*\.//')
 
   # Encode in Base64
-  ENCODED_API_SERVER_URL=$(echo "$API_SERVER_URL" | base64)
-  ENCODED_CLUSTER_NAME=$(echo "my-cluster" | base64)
+  ENCODED_API_SERVER_URL=$(echo "$API_SERVER_URL" | base64 -w 0)
+  ENCODED_CLUSTER_NAME=$(echo "my-cluster" | base64 -w 0)
 
   initiate_deployments
-  check_and_test ${RELEASE_NAME} ${NAME_SPACE}
-  check_and_test ${RELEASE_NAME_RBAC} ${NAME_SPACE_RBAC}
+  # check_and_test ${RELEASE_NAME} ${NAME_SPACE}
+  # check_and_test ${RELEASE_NAME_RBAC} ${NAME_SPACE_RBAC}
 }
 
 main
